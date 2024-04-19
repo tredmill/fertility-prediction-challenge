@@ -1,27 +1,45 @@
-# This is an example script to train your model given the (cleaned) input dataset.
-# 
-# This script will not be run on the holdout data, 
-# but the resulting model model.joblib will be applied to the holdout data.
-# 
-# It is important to document your training steps here, including seed, 
-# number of folds, model, et cetera
+install.packages("lmtest")
+library(lmtest)
 
-train_save_model <- function(cleaned_df, outcome_df) {
-  # Trains a model using the cleaned dataframe and saves the model to a file.
+setwd("G:/My Drive/post-phd/PreFer/data/training_data")
+df <- read.csv("PreFer_train_data.csv")
+y <- read.csv("PreFer_train_outcome.csv")
 
-  # Parameters:
-  # cleaned_df (dataframe): The cleaned data from clean_df function to be used for training the model.
-  # outcome_df (dataframe): The data with the outcome variable (e.g., from PreFer_train_outcome.csv or PreFer_fake_outcome.csv).
 
-  ## This script contains a bare minimum working example
-  set.seed(1) # not useful here because logistic regression deterministic
-  
-  # Combine cleaned_df and outcome_df
-  model_df <- merge(cleaned_df, outcome_df, by = "nomem_encr")
-  
-  # Logistic regression model
-  model <- glm(new_child ~ age, family = "binomial", data = model_df)
-  
-  # Save the model
-  saveRDS(model, "model.rds")
-}
+setwd('G:/My Drive/post-phd/PreFer/fertility-prediction-challenge')
+source("submission.R")
+
+df = clean_df(df)
+df <- merge(df, y, by = "nomem_encr")
+
+missings_count <- list()
+for (i in 1:ncol(df)){missings_count[[i]] <- sum(is.na(df[,i]))}
+cbind(colnames(df), unlist(missings_count))
+
+missing <- unlist(lapply(1:nrow(df), function(i){sum(is.na(df[i,]))}))>0
+df = df[!missing,]
+
+m0 <- glm(new_child~1, data = df, family = 'binomial')
+model <- glm(new_child ~ gender_bg + age + age^2 + edu + migration_background_bg + nettoink_f_2020 + 
+               relationship_status + number_of_children + child_under_5 + relationship_satisfaction + #family status
+               student + employed + self_employed +  #employment status
+               future_children + #family plans
+               church_attendence + pray + gender_values + marital_values +
+               chronic_illness + relationship_mother , data = df, family = 'binomial')
+summary(model)
+lrtest(m0, model) 
+#delta chi-sq
+#367 without impute
+#531 with impute
+
+lpm <- lm(new_child ~ gender_bg + age + age^2 + edu + migration_background_bg + nettoink_f_2020 + 
+               relationship_status + number_of_children + child_under_5 + relationship_satisfaction + #family status
+               student + employed + self_employed +  #employment status
+               future_children + #family plans
+               church_attendence + pray + gender_values + marital_values +
+               chronic_illness + relationship_mother , data = df)
+summary(lpm)
+
+saveRDS(model, file = 'model.rds')
+
+

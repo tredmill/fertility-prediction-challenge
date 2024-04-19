@@ -3,7 +3,8 @@
 # This script calls submission.R. 
 # Add your method there.
 
-# To test your submission use the following command: 
+# To test your submission use the following commands: 
+# G:
 # Rscript run.R PreFer_fake_data.csv PreFer_fake_background_data.csv
 
 # Install required packages with Rscript packages.R
