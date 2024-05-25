@@ -15,6 +15,8 @@
 
 # List your packages here. Don't forget to update packages.R!
 library(psych)
+library(dplyr)
+library(mice)
 
 clean_df <- function(df, background_df = NULL){
   # Preprocess the input dataframe to feed the model.
@@ -27,6 +29,202 @@ clean_df <- function(df, background_df = NULL){
   # Returns:
   # data frame: The cleaned dataframe with only the necessary columns and processed variables.
 
+  # Pre-process due to original coding of missing values -----------------------
+
+  # Recode missing values in number of alive children with 0
+  df$cf20m455[is.na(df$cf20m455)] <- 0
+  df$cf19l455[is.na(df$cf19l455)] <- 0
+
+  # Birth year of 1st, 2nd, etc. children
+  children_age <- c("cf20m456", "cf20m457", "cf20m458", "cf20m459", "cf20m460", "cf20m461", "cf20m462")
+
+  # Create an age of youngest children variable
+  df$age_youngest_child <- NA
+  for (i in 1:length(children_age)) {
+    df$age_youngest_child[!is.na(df[children_age[i]])] <- 2024 - df[children_age[i]][!is.na(df[children_age[i]])]
+  }
+  df$age_youngest_child[is.na(df$age_youngest_child)] <- 0
+
+  # Create a categorical variable for relationship satisfaction
+  df$relationship_satisfaction <- NA
+  df$relationship_satisfaction[df$cf20m180 <= 5] <- "onvoldoende"
+  df$relationship_satisfaction[df$cf20m180 > 5 & df$cf20m180 <= 7] <- "voldoende"
+  df$relationship_satisfaction[df$cf20m180 > 7] <- "goed"
+  df$relationship_satisfaction[is.na(df$cf20m180)] <- "no partner"
+  df$relationship_satisfaction <- as.factor(df$relationship_satisfaction)
+
+  # Recode fertility intention weird values
+  df$cf20m130[which(df$cf20m130 == 2025)] <- 5
+
+  # Make fertility intention categorical variable
+  df$future_children <- "no"
+  df$future_children[df$cf20m128 == 3] <- "dont know"
+  df$future_children[df$cf20m130 <= 1] <- "next year"
+  df$future_children[df$cf20m130 > 1 & df$cf20m130 <= 5] <- "next 5 years"
+  df$future_children[df$cf20m130 > 5] <- "more than 5 years"
+  df$future_children <- factor(df$future_children, levels = c("no", "next year", "next 5 years", "more than 5 years", "dont know"))
+
+  # Define names of all variables we want to keep for future processing --------
+
+  # Created variables
+  vars_created <- c(
+    "age_youngest_child", 
+    "relationship_satisfaction",
+    "future_children"
+  )
+
+  # Background variables
+  bg_variables <- c(
+    gender = "gender_bg",
+    birthyear_bg = "birthyear_bg",
+    migration_background_bg = "migration_background_bg"
+  )
+
+  # Yearly variables
+  vars_2020 <- c(
+    edu = "cw20m005",
+    # relationship_status = "cf20m024",
+    number_of_children = "cf20m455",
+    # birth_of_child_1 = "cf20m456",
+    # birth_of_child_1 = "cf20m457",
+    # birth_of_child_1 = "cf20m458",
+    # birth_of_child_1 = "cf20m459",
+    # birth_of_child_1 = "cf20m460",
+    # birth_of_child_1 = "cf20m461",
+    # birth_of_child_1 = "cf20m462",
+    # relationship_satisfaction = "cf20m180",
+    employment = "belbezig_2020",
+    nettoink_f_2020 = "nettoink_f_2020",
+    # future_children = "cf20m128",
+    church_attendence = "cr20m041",
+    pray = "cr20m042",
+    childrearing_values_1 = "cv20l151",
+    childrearing_values_2 = "cv20l152",
+    childrearing_values_3 = "cv20l153",
+    childrearing_values_4 = "cv20l154",
+    # children_plan = "cf20m130",
+    marital_values_1 = "cv20l124",
+    marital_values_2 = "cv20l125",
+    marital_values_3 = "cv20l126",
+    marital_values_4 = "cv20l127",
+    marital_values_5 = "cv20l128",
+    marital_values_6 = "cv20l129",
+    marital_values_7 = "cv20l130",
+    anxiety_1 = "ch20m011",
+    anxiety_1 = "ch20m012",
+    anxiety_1 = "ch20m013",
+    anxiety_1 = "ch20m014",
+    chronic_illness = "ch20m018",
+    rel_mother_1 = "cf20m504",
+    rel_mother_1 = "cf20m505",
+    rel_mother_1 = "cf20m506",
+    rel_mother_1 = "cf20m507",
+    rel_mother_1 = "cf20m508",
+    rel_mother_1 = "cf20m509",
+    rel_mother_1 = "cf20m510",
+    rel_mother_1 = "cf20m511",
+    rel_mother_1 = "cf20m512"
+  )
+
+  # Yearly variables
+  vars_2019 <- c(
+    # relationship_status = "cf19l024",
+    # number_of_children = "cf19l455",
+    # birth_of_child_1 = "cf19l456",
+    # birth_of_child_1 = "cf19l457",
+    # birth_of_child_1 = "cf19l458",
+    # birth_of_child_1 = "cf19l459",
+    # birth_of_child_1 = "cf19l460",
+    # birth_of_child_1 = "cf19l461",
+    # birth_of_child_1 = "cf19l462",
+    # relationship_satisfaction = "cf19l180",
+    employment = "belbezig_2019",
+    nettoink_f_2020 = "nettoink_f_2019",
+    # future_children = "cf19l128", # badly coded variable: it seems that response "don't know" was assigned NA
+    church_attendence = "cr19l041",
+    pray = "cr19l042",
+    childrearing_values_1 = "cv19k151",
+    childrearing_values_2 = "cv19k152",
+    childrearing_values_3 = "cv19k153",
+    childrearing_values_4 = "cv19k154",
+    marital_values_1 = "cv19k124",
+    marital_values_2 = "cv19k125",
+    marital_values_3 = "cv19k126",
+    marital_values_4 = "cv19k127",
+    marital_values_5 = "cv19k128",
+    marital_values_6 = "cv19k129",
+    marital_values_7 = "cv19k130",
+    anxiety_1 = "ch19l011",
+    anxiety_1 = "ch19l012",
+    anxiety_1 = "ch19l013",
+    anxiety_1 = "ch19l014",
+    chronic_illness = "ch19l018",
+    rel_mother_1 = "cf19l504",
+    rel_mother_1 = "cf19l505",
+    rel_mother_1 = "cf19l506",
+    rel_mother_1 = "cf19l507",
+    rel_mother_1 = "cf19l508",
+    rel_mother_1 = "cf19l509",
+    rel_mother_1 = "cf19l510",
+    rel_mother_1 = "cf19l511",
+    rel_mother_1 = "cf19l512"
+  )
+
+  # Keep only people that were asked a question in 2020
+  df_2020 <- df[!is.na(df$cf20m_m), ]
+
+  # Keep only the variables we want
+  df_2020 <- df_2020[, c(bg_variables, vars_2020, vars_2019, vars_created)]
+
+  # Correct variable type based
+  var_types <- data.frame(
+    Name = c(bg_variables, vars_2020, vars_2019, vars_created),
+    Type = rep("numeric", ncol(df_2020))
+  )
+
+  # Make unordered factors
+  var_types[var_types$Name %in% c(
+    "gender_bg",
+    "migration_background_bg",
+    "cw20m005",
+    "belbezig_2020",
+    "belbezig_2019",
+    "relationship_satisfaction",
+    "future_children"
+  ), "Type"] <- "factor"
+
+  # Transform to factor variables that should be treated as such
+  for(j in 1:ncol(df_2020)){
+    if(var_types$Type[j] == "factor"){
+      df_2020[, j] <- as.factor(df_2020[, j])
+    }
+    if (var_types$Type[j] == "numeric") {
+      df_2020[, j] <- as.numeric(df_2020[, j])
+    }
+  }
+
+  # Perform imputation ---------------------------------------------------------
+
+  # Define methods
+  imp_methods <- mice::make.method(df_2020)
+
+  # Quick pred
+  predmat <- mice::quickpred(df_2020)
+
+  # Perform single imputation
+  imps <- mice::mice(
+    data = df_2020,
+    m = 1,
+    maxit = 80,
+    method = imp_methods,
+    predictorMatrix = predmat,
+    printFlag = FALSE
+  )
+
+  # Extract imputed data
+  df_imputed <- complete(imps, 1)
+
+  # Process imputed data -------------------------------------------------------
 
   #delete respondents with missing outcome
   df = df[df$outcome_available==1,]
