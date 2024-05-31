@@ -8,6 +8,7 @@ https://stulp.gmw.rug.nl/prefer/posts/posts/2024-03-25-simple-walkthrough-r.html
 
 (3) Submit via Next platform
 https://github.com/eyra/fertility-prediction-challenge?tab=readme-ov-file#submit-your-method
+https://next.eyra.co/assignment/55/invite
 
 submission link:
 https://github.com/tredmill/fertility-prediction-challenge/commit/935388ef65db2eae7f01d4972031a97b55460215

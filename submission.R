@@ -281,9 +281,7 @@ clean_df <- function(df, background_df = NULL, imputation = T){
   
   # Process imputed data -------------------------------------------------------
   
-  print("missing values:")
-  print(cbind(colnames(df), unlist(lapply(1:ncol(df), function(i){sum(is.na(df[,i]))}))))
-  
+
   # predictors 2020
   # individual characteristics
   
@@ -491,9 +489,6 @@ predict_outcomes <- function(df, background_df = NULL, model_path = "./model.rds
   # Preprocess the fake / holdout data
   df <- clean_df(df, background_df)
 
-  # Exclude the variable nomem_encr if this variable is NOT in your model
-  vars_without_id <- colnames(df)[colnames(df) != "nomem_encr"]
-  
   # missing variables
   missing_vars <- colnames(model$data)[!colnames(model$data) %in% colnames(df)]
   missing_vars = missing_vars[!missing_vars %in% "new_child"]
@@ -501,10 +496,13 @@ predict_outcomes <- function(df, background_df = NULL, model_path = "./model.rds
     print("variables missing in dataframe:")
     print(missing_vars)
     m = as.data.frame(matrix(rep(0, nrow(df)*length(missing_vars)), nrow=nrow(df), ncol=length(missing_vars)))
-    m[1,] = rep(1, length(missing_vars))
+    #m[1,] = rep(1, length(missing_vars))
     colnames(m) <- missing_vars
     df = cbind(df, m)
   }
+  
+  # Exclude the variable nomem_encr if this variable is NOT in your model
+  vars_without_id <- colnames(df)[colnames(df) != "nomem_encr"]
   
   # Generate predictions from model
   predictions <- predict(model, 
