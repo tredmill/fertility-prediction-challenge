@@ -281,6 +281,9 @@ clean_df <- function(df, background_df = NULL, imputation = T){
   
   # Process imputed data -------------------------------------------------------
   
+  print("missing values:")
+  print(cbind(colnames(df), unlist(lapply(1:ncol(df), function(i){sum(is.na(df[,i]))}))))
+  
   # predictors 2020
   # individual characteristics
   
@@ -493,6 +496,7 @@ predict_outcomes <- function(df, background_df = NULL, model_path = "./model.rds
   
   # missing variables
   missing_vars <- colnames(model$data)[!colnames(model$data) %in% colnames(df)]
+  missing_vars = missing_vars[!missing_vars %in% "new_child"]
   if (length(missing_vars)!=0){
     print("variables missing in dataframe:")
     print(missing_vars)
