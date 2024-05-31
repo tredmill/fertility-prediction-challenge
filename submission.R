@@ -13,12 +13,14 @@
 # 
 # run.R can be used to test your submission.
 
+
 # List your packages here. Don't forget to update packages.R!
 library(psych)
 library(dplyr)
 library(mice)
 
-clean_df <- function(df, background_df = NULL){
+
+clean_df <- function(df, background_df = NULL, imputation = T){
   # Preprocess the input dataframe to feed the model.
   ### If no cleaning is done (e.g. if all the cleaning is done in a pipeline) leave only the "return df" command
 
@@ -28,7 +30,9 @@ clean_df <- function(df, background_df = NULL){
 
   # Returns:
   # data frame: The cleaned dataframe with only the necessary columns and processed variables.
-
+  #delete respondents with missing outcome
+  df = df[df$outcome_available==1,]
+  gc()
   # Pre-process due to original coding of missing values -----------------------
 
   # Recode missing values in number of alive children with 0
@@ -44,6 +48,42 @@ clean_df <- function(df, background_df = NULL){
     df$age_youngest_child[!is.na(df[children_age[i]])] <- 2024 - df[children_age[i]][!is.na(df[children_age[i]])]
   }
   df$age_youngest_child[is.na(df$age_youngest_child)] <- 0
+  
+  #structural zero's in relationship status
+  cbind(df$cf17j024[is.na(df$cf20m024)], df$cf18k024[is.na(df$cf20m024)], df$cf19l024[is.na(df$cf20m024)])
+  
+  df$cf20m024[is.na(df$cf20m024)] <- df$cf19l024[is.na(df$cf20m024)]
+  #df$cf20m024[is.na(df$cf20m024)] <- df$cf18k024[is.na(df$cf20m024)]
+  #df$cf20m024[is.na(df$cf20m024)] <- df$cf17j024[is.na(df$cf20m024)]
+  df$cf20m025[df$cf20m024==2] <- 2
+  df$cf20m030[df$cf20m024==2] <- 2
+  
+  #relationship status
+  df$relationship_status = NA ##is.na default
+  df$relationship_status[df$cf20m024 == 2] <- "no_partner"
+  df$relationship_status[df$cf20m024 == 1] <- "live_apart"
+  df$relationship_status[df$cf20m025 == 1] <- "cohabit"
+  df$relationship_status[df$cf20m030 == 1 | df$burgstat_2020 == 1] <- "married"
+  #df$relationship_status[1] <- 'cohabit'
+  df$relationship_status <- as.factor(df$relationship_status)
+  
+  
+  table(df$relationship_status, useNA= 'ifany')
+  
+  #NA in mother availability
+  table(df$cf20m011, useNA='ifany')  
+  cbind(df$cf17j011[is.na(df$cf20m011)], df$cf18k011[is.na(df$cf20m011)], df$cf19l011[is.na(df$cf20m011)])
+  df$cf20m011[is.na(df$cf20m011)] <- df$cf19l011[is.na(df$cf20m011)]
+  df$cf20m011[is.na(df$cf20m011)] <- df$cf18k011[is.na(df$cf20m011)]
+  df$cf20m011[is.na(df$cf20m011)] <- df$cf17j011[is.na(df$cf20m011)]
+  
+  #NA in generalized trust 
+  table(df$cp20l019, useNA='ifany')
+  cbind(df$cp17i019[is.na(df$cp20l019)], df$cp18j019[is.na(df$cp20l019)], df$cp19k019[is.na(df$cp20l019)])
+  df$cp20l019[is.na(df$cp20l019)] <- df$cp19k019[is.na(df$cp20l019)]
+  df$cp20l019[is.na(df$cp20l019)] <- df$cp18j019[is.na(df$cp20l019)]
+  df$cp20l019[is.na(df$cp20l019)] <- df$cp17i019[is.na(df$cp20l019)]
+  
 
   # Create a categorical variable for relationship satisfaction
   df$relationship_satisfaction <- NA
@@ -69,12 +109,14 @@ clean_df <- function(df, background_df = NULL){
   # Created variables
   vars_created <- c(
     "age_youngest_child", 
+    "relationship_status", 
     "relationship_satisfaction",
     "future_children"
   )
 
   # Background variables
   bg_variables <- c(
+    id = "nomem_encr",
     gender = "gender_bg",
     birthyear_bg = "birthyear_bg",
     migration_background_bg = "migration_background_bg"
@@ -83,7 +125,10 @@ clean_df <- function(df, background_df = NULL){
   # Yearly variables
   vars_2020 <- c(
     edu = "cw20m005",
-    # relationship_status = "cf20m024",
+    relationship_status_1 = "cf20m024",
+    #relationship_status_2 = "cf20m025",
+    #relationship_status_3 = "cf20m030",
+    #relationship_status_4 = "burgstat_2020",
     number_of_children = "cf20m455",
     # birth_of_child_1 = "cf20m456",
     # birth_of_child_1 = "cf20m457",
@@ -115,15 +160,8 @@ clean_df <- function(df, background_df = NULL){
     anxiety_1 = "ch20m013",
     anxiety_1 = "ch20m014",
     chronic_illness = "ch20m018",
-    rel_mother_1 = "cf20m504",
-    rel_mother_1 = "cf20m505",
-    rel_mother_1 = "cf20m506",
-    rel_mother_1 = "cf20m507",
-    rel_mother_1 = "cf20m508",
-    rel_mother_1 = "cf20m509",
-    rel_mother_1 = "cf20m510",
-    rel_mother_1 = "cf20m511",
-    rel_mother_1 = "cf20m512"
+    mother_alive = "cf20m011",
+    trust = "cp20l019"
   )
 
   # Yearly variables
@@ -159,22 +197,15 @@ clean_df <- function(df, background_df = NULL){
     anxiety_1 = "ch19l013",
     anxiety_1 = "ch19l014",
     chronic_illness = "ch19l018",
-    rel_mother_1 = "cf19l504",
-    rel_mother_1 = "cf19l505",
-    rel_mother_1 = "cf19l506",
-    rel_mother_1 = "cf19l507",
-    rel_mother_1 = "cf19l508",
-    rel_mother_1 = "cf19l509",
-    rel_mother_1 = "cf19l510",
-    rel_mother_1 = "cf19l511",
-    rel_mother_1 = "cf19l512"
+    mother_alive = "cf19l011",
+    trust = "cp19k019"
   )
 
   # Keep only people that were asked a question in 2020
-  df_2020 <- df[!is.na(df$cf20m_m), ]
+  #df_2020 <- df[!is.na(df$cf20m_m), ]
 
   # Keep only the variables we want
-  df_2020 <- df_2020[, c(bg_variables, vars_2020, vars_2019, vars_created)]
+  df_2020 <- df[, c(bg_variables, vars_2020, vars_2019, vars_created)]
 
   # Correct variable type based
   var_types <- data.frame(
@@ -187,10 +218,16 @@ clean_df <- function(df, background_df = NULL){
     "gender_bg",
     "migration_background_bg",
     "cw20m005",
+    "relationship_status",
+    #"cf20m024", 
+    #"cf20m025", 
+    #"cf20m030",
+    #"burgstat_2020",
     "belbezig_2020",
     "belbezig_2019",
     "relationship_satisfaction",
-    "future_children"
+    "future_children", 
+    "mother_alive"
   ), "Type"] <- "factor"
 
   # Transform to factor variables that should be treated as such
@@ -204,42 +241,60 @@ clean_df <- function(df, background_df = NULL){
   }
 
   # Perform imputation ---------------------------------------------------------
+  print("start imputation")
+  
+  impute <- function(df){
+    tryCatch({
+      
+      # Define methods
+      imp_methods <- mice::make.method(df_2020)
+      
+      # Quick pred
+      predmat <- mice::quickpred(df_2020)
+      
+      # Perform single imputation
+      imps <- mice::mice(
+        data = df_2020,
+        m = 1,
+        maxit = 80,
+        method = imp_methods,
+        predictorMatrix = predmat,
+        printFlag = FALSE
+      )
+      
+      # Extract imputed data
+      df <- mice::complete(imps, 1)
+      
+      print("imputation finished")
+      return(df)
+      
+    }, error = function(e){
+      message("multiple imputation failed")
+      return(df)
+    }
+    )
+  }
+  
+  if (imputation ==T){ df <- impute(df) }
 
-  # Define methods
-  imp_methods <- mice::make.method(df_2020)
-
-  # Quick pred
-  predmat <- mice::quickpred(df_2020)
-
-  # Perform single imputation
-  imps <- mice::mice(
-    data = df_2020,
-    m = 1,
-    maxit = 80,
-    method = imp_methods,
-    predictorMatrix = predmat,
-    printFlag = FALSE
-  )
-
-  # Extract imputed data
-  df_imputed <- complete(imps, 1)
-
+  
+  
   # Process imputed data -------------------------------------------------------
-
-  #delete respondents with missing outcome
-  df = df[df$outcome_available==1,]
-  gc()
   
   # predictors 2020
   # individual characteristics
   
   #gender
-  table(df$gender_bg, useNA= 'ifany')
+  table(is.na(df$gender_bg))
+  df$gender_bg <- as.factor(df$gender_bg)
   
   #age
   df$age = 2024 - df$birthyear_bg
+  df$age[is.na(df$age)] <- mean(df$age, na.rm=T)
+  table(is.na(df$age))
 
   #educational level
+  df$cw20m005 <- as.numeric(df$cw20m005)
   df$edu <- "unknown"
   df$edu[df$cw20m005<=11] <- "vmbo"
   df$edu[df$cw20m005>11 & df$cw20m005<=15] <- "havo-vwo"
@@ -247,72 +302,62 @@ clean_df <- function(df, background_df = NULL){
   df$edu[df$cw20m005>17 & df$cw20m005<= 24] <- "bachelor"
   df$edu[df$cw20m005>24] <- "master"
   df$edu <- as.factor(df$edu)
+  table(df$edu, useNA= 'ifany')
   
   #etnicity
-  df$migration_background_bg[is.na(df$migration_background_bg)] <- "unknown"
+  df$migration_background_bg <- as.numeric(df$migration_background_bg)
+  df$migration_background_bg[df$migration_background_bg==0] <- 1 ##is.na default
+  df$migration_background_bg[df$migration_background_bg==101] <- 2
+  df$migration_background_bg[df$migration_background_bg==102] <- 3
+  df$migration_background_bg[df$migration_background_bg==201] <- 4
+  df$migration_background_bg[df$migration_background_bg==202] <- 5
+  df$migration_background_bg[is.na(df$migration_background_bg)] <- 1
+  
   df$migration_background_bg <- as.factor(df$migration_background_bg)
+  table(df$migration_background_bg, useNA= 'ifany')
   
   #relationship status
-  df$cf20m024[is.na(df$cf20m024)] <- 2
-  df$cf20m025[is.na(df$cf20m025)] <- 2
-  df$cf20m030[is.na(df$cf20m030)] <- 2
-  
-  df$relationship_status = NA
-  df$relationship_status[df$cf20m024 == 2] <- "no_partner"
-  df$relationship_status[df$cf20m024 == 1] <- "live_apart"
-  df$relationship_status[df$cf20m025 == 1] <- "cohabit"
-  df$relationship_status[df$cf20m030 == 1 | df$burgstat_2020 == 1] <- "married"
   df$relationship_status <- as.factor(df$relationship_status)
   
   #number of children
-  df$cf20m455[is.na(df$cf20m455)] <- 0
+  df$cf20m455[is.na(df$cf20m455)] <- 0 ##is.na default
   df$cf20m455[df$cf20m455>=3] <- '3+'
   df$number_of_children <- as.factor(df$cf20m455)
+  table(df$number_of_children, useNA= 'ifany')
   
   #age youngest child
   vars <- c("cf20m456", "cf20m457", "cf20m458", "cf20m459", "cf20m460", "cf20m461", "cf20m462")
-  df$age_youngest_child <- NA
-  
-  for (i in 1:length(vars)){
-    df$age_youngest_child[!is.na(df[vars[i]])] <- 2024 - df[vars[i]][!is.na(df[vars[i]])]
-  }
-  
   df$child_under_5 <- as.numeric(df$age_youngest_child<=5)
-  df$child_under_5[is.na(df$child_under_5)] <- 0
-
+  df$child_under_5[is.na(df$child_under_5)] <- 0 ##is.na default
+  table(df$child_under_5, useNA= 'ifany')
+  
   #relationship satisfaction
-  df$relationship_satisfaction <- NA
-  df$relationship_satisfaction[df$cf20m180<=5] <- "onvoldoende"
-  df$relationship_satisfaction[df$cf20m180>5 & df$cf20m180<=7] <- "voldoende"
-  df$relationship_satisfaction[df$cf20m180>7 ] <- "goed"
-  df$relationship_satisfaction[is.na(df$cf20m180)] <- "no partner"
-  df$relationship_satisfaction <- as.factor(df$relationship_satisfaction)
+  table(df$relationship_satisfaction, useNA= 'ifany')
   
   #employement status
+  table(df$belbezig_2020, useNA= 'ifany')
   df$student = as.numeric(df$belbezig_2020==7)
-  df$student[is.na(df$student)] <- 0
   df$self_employed = as.numeric(df$belbezig_2020 == 3)
-  df$self_employed[is.na(df$self_employed)] <- 0
   df$employed = as.numeric(df$belbezig_2020 %in% 1:2)
+  df$student[is.na(df$student)] <- 0 ##is.na default
+  df$self_employed[is.na(df$self_employed)] <- 0 ##is.na default
 
   #household income
+  table(is.na(df$nettoink_f_2020))
   df$nettoink_f_2020[is.na(df$nettoink_f_2020)] <- mean(df$nettoink_f_2020, na.rm=T)
-
+  
   #fertility intentions
-  df$future_children <- "no"
-  df$future_children[df$cf20m128==3] <- "dont know"
-  df$future_children[df$cf20m130<=1] <- "next year"
-  df$future_children[df$cf20m130>1 & df$cf20m130<=5] <- "next 5 years"
-  df$future_children[df$cf20m130>5] <- "more than 5 years"
-  df$future_children <- factor(df$future_children, levels=c("no", "next year", "next 5 years", "more than 5 years", "dont know"))
-
+  table(df$future_children, useNA= 'ifany')
+  
   #traditional values
   #church attendance / prayer
-  df$cr20m041[is.na(df$cr20m041)] <- "unknown"
+  df$cr20m041[is.na(df$cr20m041)] <- 6
   df$church_attendence <- as.factor(df$cr20m041)
+  table(df$church_attendence, useNA= 'ifany')
   
-  df$cr20m042[is.na(df$cr20m042)] <- "unknown"
+  df$cr20m042[is.na(df$cr20m042)] <- 6
   df$pray <- as.factor(df$cr20m042)
+  table(df$pray, useNA= 'ifany')
   
   #childrearing values
   fa_1 = fa(df[,c("cv20l151", "cv20l152", "cv20l153", "cv20l154")])
@@ -332,24 +377,26 @@ clean_df <- function(df, background_df = NULL){
   #anxiety
   df$ch20m013 = 7 - df$ch20m013
   fa_3 <- fa(df[,c("ch20m011", "ch20m012", "ch20m013", "ch20m014")])
-  df$anxiety <- factor.scores(df[,c("ch20m011", "ch20m012", "ch20m013", "ch20m014")], fa_3)$scores
+  df$anxiety <- factor.scores(df[,c("ch20m011", "ch20m012", "ch20m013", "ch20m014")], fa_3,  missing = T, impute=T)$scores
   
   #chronic illness
   df$ch20m018 = abs(df$ch20m018 - 2 )
-  df$ch20m018[is.na(df$ch20m018)] <- "unknown"
+  df$ch20m018[is.na(df$ch20m018)] <- 0
   df$chronic_illness <- as.factor(df$ch20m018)
-
+  table(df$chronic_illness, useNA='ifany')
   
   #relationship mother
-  df$cf20m506 = 8 - df$cf20m506
-  df$cf20m507 = 8 - df$cf20m507
-  df$cf20m509 = 8 - df$cf20m509
-  df$cf20m510 = 8 - df$cf20m510
-  df$cf20m511 = 8 - df$cf20m511
-  df$cf20m512 = 8 - df$cf20m512
+  #NOTE: availability is alive (cf20m011) + distance (cf20m400),  
+  #distance has too many missings.. 
+  df$mother_alive = df$cf20m011
+  df$mother_alive[is.na(df$mother_alive)] <- 1
+  table(df$mother_alive, useNA='ifany')  
+
+  #generalized trust
+  df$trust = df$cp20l019
+  df$trust[is.na(df$trust)] <- mean(df$trust, na.rm=T)
+  table(df$trust, useNA='ifany') 
   
-  fa_4 <- fa(df[,c("cf20m504", "cf20m505", "cf20m506", "cf20m507", "cf20m508", "cf20m510", "cf20m511", "cf20m512")])
-  df$relationship_mother <- factor.scores(df[,c("cf20m504", "cf20m505", "cf20m506", "cf20m507", "cf20m508", "cf20m510", "cf20m511", "cf20m512")], fa_4, missing = T, impute = T)$scores
   
   keepcols = c('nomem_encr',
                'gender_bg',
@@ -370,10 +417,42 @@ clean_df <- function(df, background_df = NULL){
                'gender_values', 
                'marital_values',
                'chronic_illness', 
-               'relationship_mother')  
+               'anxiety',
+               'mother_alive', 
+               'trust')  
 
   ## Keeping data with variables selected
   df <- df[ , keepcols ]
+  
+  print("missing values:")
+  print(cbind(colnames(df), unlist(lapply(1:ncol(df), function(i){sum(is.na(df[,i]))}))))
+  
+  #factors to dummies
+  df <- model.matrix( 
+    ~ nomem_encr + gender_bg + age + age^2 + edu + migration_background_bg + nettoink_f_2020 + 
+      relationship_status + number_of_children + child_under_5 + relationship_satisfaction + #family status
+      student + employed + self_employed +  #employment status
+      future_children + #family plans
+      church_attendence + pray + gender_values + marital_values +
+      chronic_illness + mother_alive + trust, 
+    data = df
+  )
+  
+  #normalize continuous vars 
+  vars = c(
+    'age', 
+    'nettoink_f_2020',
+    'gender_values', 
+    'marital_values',
+    'trust')
+  df[,vars] <- apply(df[,vars], 2, function(x) {
+    return ((x - min(x)) / (max(x) - min(x)))
+  })
+  
+  df <- as.data.frame(df)
+  vars <- c('eduhavo-vwo', "relationship_satisfactionno partner", 'future_childrennext year', "future_childrennext 5 years", "future_childrenmore than 5 years", "future_childrendont know", "number_of_children3+")
+  colnames(df)[colnames(df) %in% vars] <- c('eduhavovwo', "relationship_satisfactionnopartner", 'future_childrennextyear', "future_childrennext5years", "future_childrenmorethan5years", "future_childrendontknow", "number_of_children3")
+  
 
   return(df)
 }
@@ -411,6 +490,17 @@ predict_outcomes <- function(df, background_df = NULL, model_path = "./model.rds
 
   # Exclude the variable nomem_encr if this variable is NOT in your model
   vars_without_id <- colnames(df)[colnames(df) != "nomem_encr"]
+  
+  # missing variables
+  missing_vars <- colnames(model$data)[!colnames(model$data) %in% colnames(df)]
+  if (length(missing_vars)!=0){
+    print("variables missing in dataframe:")
+    print(missing_vars)
+    m = as.data.frame(matrix(rep(0, nrow(df)*length(missing_vars)), nrow=nrow(df), ncol=length(missing_vars)))
+    m[1,] = rep(1, length(missing_vars))
+    colnames(m) <- missing_vars
+    df = cbind(df, m)
+  }
   
   # Generate predictions from model
   predictions <- predict(model, 

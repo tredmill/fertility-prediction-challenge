@@ -1,0 +1,16 @@
+(1) Command line check
+g:
+cd G:\My Drive\post-phd\PreFer\fertility-prediction-challenge
+Rscript run.R PreFer_fake_data.csv PreFer_fake_background_data.csv
+
+(2) Push changes to github
+https://stulp.gmw.rug.nl/prefer/posts/posts/2024-03-25-simple-walkthrough-r.html
+
+(3) Submit via Next platform
+https://github.com/eyra/fertility-prediction-challenge?tab=readme-ov-file#submit-your-method
+
+submission link:
+https://github.com/tredmill/fertility-prediction-challenge/commit/935388ef65db2eae7f01d4972031a97b55460215
+
+check if it works: 
+https://github.com/tredmill/fertility-prediction-challenge/actions

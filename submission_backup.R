@@ -153,7 +153,7 @@ clean_df <- function(df, background_df = NULL){
   #relationship mother
   #NOTE: availability is alive or not, fix scale:  cf20m011
   #how far thei live:  cf20m400
-  #categorical: not alive, 50, 100, 100+
+  #categorical: not alive, 50km, 100km, 100+km
   df$cf20m506 = 8 - df$cf20m506
   df$cf20m507 = 8 - df$cf20m507
   df$cf20m509 = 8 - df$cf20m509

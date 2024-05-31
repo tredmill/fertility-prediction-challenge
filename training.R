@@ -1,4 +1,4 @@
-install.packages("neuralnet")
+
 
 library(lmtest)
 library(neuralnet)
@@ -7,58 +7,56 @@ setwd("G:/My Drive/post-phd/PreFer/data/training_data")
 df <- read.csv("PreFer_train_data.csv")
 y <- read.csv("PreFer_train_outcome.csv")
 
-
 setwd('G:/My Drive/post-phd/PreFer/fertility-prediction-challenge')
 source("submission.R")
 
-df = clean_df(df)
+df = clean_df(df, imputation = T)
 df <- merge(df, y, by = "nomem_encr")
 
+m2 = neuralnet(new_child ~ gender_bg2 + age + age^2 +                       
+                 eduhavovwo + edumaster + edumbo + eduvmbo + 
+                 migration_background_bg2 + migration_background_bg3 + migration_background_bg4 + migration_background_bg5 + 
+                 nettoink_f_2020 +
+                 relationship_statuslive_apart + relationship_statusmarried + relationship_statusno_partner + 
+                 number_of_children1 + number_of_children2  + number_of_children3 +child_under_5 +
+                 relationship_satisfactionnopartner + relationship_satisfactiononvoldoende + relationship_satisfactionvoldoende +
+                 student + employed + self_employed +
+                 future_childrennext5years + future_childrenmorethan5years + future_childrendontknow +
+                 church_attendence2 + church_attendence3 + church_attendence4 + church_attendence5 + church_attendence6 +
+                 pray2 +pray3 + pray4 + pray5 + pray6 + gender_values + marital_values + 
+                 chronic_illness1 + mother_alive + trust, 
+               data=df, 
+               hidden = 5, 
+               stepmax = 1e+08, 
+               rep = 1, 
+               lifesign = "full", 
+               algorithm = "rprop+", 
+               err.fct = "ce", 
+               linear.output = F)
 
-m0 <- glm(new_child~1, data = df, family = 'binomial')
-model <- glm(new_child ~ gender_bg + age + age^2 + edu + migration_background_bg + nettoink_f_2020 + 
-               relationship_status + number_of_children + child_under_5 + relationship_satisfaction + #family status
-               student + employed + self_employed +  #employment status
-               future_children + #family plans
-               church_attendence + pray + gender_values + marital_values +
-               chronic_illness + relationship_mother , data = df, family = 'binomial')
+m1 <- glm(new_child ~ gender_bg2 + age + age^2 +                       
+            eduhavovwo + edumaster + edumbo + eduvmbo + 
+            migration_background_bg2 + migration_background_bg3 + migration_background_bg4 + migration_background_bg5 + 
+            nettoink_f_2020 +
+            relationship_statuslive_apart + relationship_statusmarried + relationship_statusno_partner + 
+            number_of_children1 + number_of_children2  + number_of_children3 +child_under_5 +
+            relationship_satisfactionnopartner + relationship_satisfactiononvoldoende + relationship_satisfactionvoldoende +
+            student + employed + self_employed +
+            future_childrennext5years + future_childrenmorethan5years + future_childrendontknow +
+            church_attendence2 + church_attendence3 + church_attendence4 + church_attendence5 + church_attendence6 +
+            pray2 +pray3 + pray4 + pray5 + pray6 + gender_values + marital_values + 
+            chronic_illness1 + mother_alive + trust, 
+          data = df, family = 'binomial')
 
 
-#neural network
-#factors to numeric
-for (j in 1:ncol(df)){
-  df[,j] <- as.numeric(df[,j])
-}
-
-#normalize continuous vars 
-vars = c(
-  'age', 
-  'nettoink_f_2020',
-  'gender_values', 
-  'marital_values',
-  'anxiety', 
-  'relationship_mother')
-df[,vars] <- apply(df[,vars], 2, function(x) {
-  return ((x - min(x)) / (max(x) - min(x)))
-})
 
 
-model = neuralnet(new_child ~ gender_bg + age + edu + migration_background_bg + nettoink_f_2020 + 
-                    relationship_status + number_of_children + child_under_5 + relationship_satisfaction + #family status
-                    student + employed + self_employed +  #employment status
-                    future_children + #family plans
-                    church_attendence + pray + gender_values + marital_values +
-                    chronic_illness + relationship_mother, 
-                  data=df, 
-                  hidden = 5, 
-                  stepmax = 1e+08, 
-                  rep = 1, 
-                  lifesign = "full", 
-                  algorithm = "rprop+", 
-                  err.fct = "ce", 
-                  linear.output = F)
+
+
 
 #evaluate
+model = m2
+
 y_hat <- predict(model, df[, !colnames(df) %in% c("nomem_encr", "new_child")])
 y_hat <- ifelse(y_hat >.5, 1, 0)
 
@@ -76,3 +74,10 @@ round(confusion_matrix$freq[confusion_matrix$type=="true positive"]/sum(confusio
 saveRDS(model, file = 'model.rds')
 
 
+setwd('G:/My Drive/post-phd/PreFer/fertility-prediction-challenge')
+df <- read.csv("PreFer_fake_data.csv")
+df <- clean_df(df)
+
+colnames(df)[!colnames(df) %in% colnames(model$data)]
+colnames(model$data)[!colnames(model$data) %in% colnames(df)]
+x = predict_outcomes(df)
